@@ -2,3 +2,6 @@ venv/
 __pycache__/
 *.pyc
 data/
+# Ignore datasets
+backend/data/raw/
+backend/data/processed/
