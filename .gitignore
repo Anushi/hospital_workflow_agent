@@ -1,4 +1,9 @@
+# Ignore datasets
+data/
+backend/data/
+*.csv
+
+# Environments
 venv/
 __pycache__/
 *.pyc
-data/
