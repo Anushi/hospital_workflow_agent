@@ -1,64 +1,98 @@
-# frontend/app.py
 import streamlit as st
-import requests
+from utils.api_client import send_ambulance_data
+from components.charts import show_vitals_chart
 
-API_BASE = st.secrets.get("API_BASE", "http://127.0.0.1:8000/api")
 
-st.set_page_config(page_title="Hospital Multi-Agent UI", layout="wide")
-st.title("🏥 Hospital Multi-Agent System (Streamlit frontend)")
+st.set_page_config(
+    page_title="Hospital Pre-Arrival System",
+    layout="centered"
+)
 
-# Load data button
-if st.button("Load CSVs into backend"):
-    try:
-        r = requests.get(f"{API_BASE}/load-data", timeout=10)
-        r.raise_for_status()
-        st.success("Data loaded.")
-        st.json(r.json())
-    except Exception as e:
-        st.error(f"Load failed: {e}")
+st.title("🚑 AI-Driven Hospital Pre-Arrival Support")
 
-patient_id = st.number_input("Enter patient id (patien_id)", min_value=1, step=1, value=1)
+st.warning(
+    "This system provides workflow assistance only. "
+    "All outputs require clinical validation by hospital staff."
+)
 
-col1, col2, col3 = st.columns(3)
+# -----------------------------
+# Ambulance Identification
+# -----------------------------
+st.subheader("🚑 Ambulance Information")
 
-with col1:
-    if st.button("Run Triage"):
-        r = requests.get(f"{API_BASE}/triage/{patient_id}", params={"use_vitals": True})
-        if r.status_code == 200:
-            st.subheader("Triage Result")
-            st.json(r.json())
-        else:
-            st.error(f"Error: {r.text}")
+ambulance_id = st.selectbox(
+    "Ambulance ID",
+    ["AMB-01", "AMB-02", "AMB-03"]
+)
 
-with col2:
-    if st.button("Run Admission"):
-        r = requests.get(f"{API_BASE}/admission/{patient_id}", params={"use_vitals": True})
-        if r.status_code == 200:
-            st.subheader("Admission Result")
-            st.json(r.json())
-        else:
-            st.error(f"Error: {r.text}")
+# -----------------------------
+# Patient Background
+# -----------------------------
+st.subheader("🧍 Ambulance-Collected Patient Details")
 
-with col3:
-    if st.button("Run Resource Allocation"):
-        r = requests.get(f"{API_BASE}/resource/{patient_id}")
-        if r.status_code == 200:
-            st.subheader("Resource Suggestion")
-            st.json(r.json())
-        else:
-            st.error(f"Error: {r.text}")
+age = st.number_input("Age", min_value=0, max_value=120, value=60)
+dm = st.checkbox("Known Diabetes")
+htn = st.checkbox("Known Hypertension")
+hf = st.checkbox("Known Heart Failure")
 
-st.markdown("---")
-st.subheader("Live vitals test (send manual vitals to triage)")
-hr = st.number_input("HR", value=80)
-sbp = st.number_input("SBP", value=120)
-rr = st.number_input("RR", value=16)
-spo2 = st.number_input("SpO2", value=98)
+# -----------------------------
+# Live Vitals
+# -----------------------------
+st.subheader("❤️ Live Vital Signs")
 
-if st.button("Send live vitals to triage"):
-    payload = {"hr": hr, "sbp": sbp, "rr": rr, "spo2": spo2}
-    r = requests.post(f"{API_BASE}/triage-live/{patient_id}", json=payload)
-    if r.status_code == 200:
-        st.json(r.json())
-    else:
-        st.error(f"Error: {r.text}")
+hr = st.number_input("Heart Rate (bpm)", value=80)
+sbp = st.number_input("Systolic BP (mmHg)", value=120)
+rr = st.number_input("Respiratory Rate (/min)", value=16)
+spo2 = st.number_input("SpO₂ (%)", value=98)
+
+# -----------------------------
+# Send to Hospital
+# -----------------------------
+if st.button("🚨 Send to Hospital"):
+
+    payload = {
+        "ambulance_id": ambulance_id,
+        "patient": {
+            "age": age,
+            "dm": int(dm),
+            "htn": int(htn),
+            "heart_failure": int(hf)
+        },
+        "vitals": {
+            "hr": hr,
+            "sbp": sbp,
+            "rr": rr,
+            "spo2": spo2
+        }
+    }
+    st.markdown("### 📊 Live Vitals Overview")
+    show_vitals_chart(hr, sbp, spo2, rr)
+
+
+    res = send_ambulance_data(payload)
+
+    st.markdown("---")
+    st.subheader("🏥 Hospital Pre-Arrival Status")
+
+    # -----------------------------
+    # Triage Output
+    # -----------------------------
+    st.success(f"Risk Level: {res['triage']['priority']}")
+    st.write(res["triage"]["message"])
+
+    # -----------------------------
+    # Admission Output
+    # -----------------------------
+    st.markdown("### 📋 Admission Path")
+    st.write(res["admission"]["suggested_admission_level"])
+    st.caption(res["admission"]["note"])
+
+    # -----------------------------
+    # Resource Output
+    # -----------------------------
+    st.markdown("### 🏥 Resource Preparation")
+    st.write(f"🛏 Bed Type: {res['resource']['bed']}")
+    st.write(f"👨‍⚕️ Teams Notified: {', '.join(res['resource']['teams'])}")
+    st.info(res["resource"]["note"])
+
+    st.caption(res["disclaimer"])

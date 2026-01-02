@@ -4,6 +4,16 @@ from services.data_loader import loader
 from services.agent_manager import AgentManager
 from pydantic import BaseModel
 from typing import Optional
+from agents.triage_agent import triage_agent
+from agents.admission_agent import admission_agent
+from agents.resource_agent import resource_agent
+from services.ws_manager import connected_hospitals
+from fastapi import WebSocket
+from fastapi import WebSocket, APIRouter
+from services.ws_manager import register_hospital, unregister_hospital
+from services.ws_manager import broadcast_to_hospitals
+
+import json
 
 router = APIRouter()
 agent_manager = AgentManager(loader)
@@ -68,3 +78,70 @@ def triage_live(patient_id: int, vitals: VitalsIn):
     from agents.triage_agent import triage_agent as triage_fn
     res = triage_fn(patient_row, vitals_row)
     return res
+
+@router.post("/ambulance/send")
+async def receive_ambulance_data(payload: dict):
+    # ✅ payload exists ONLY here
+    print("🚑 Ambulance data received:", payload)
+
+    # sample response
+    return {
+        "triage": {
+            "priority": "HIGH",
+            "message": "Patient needs immediate attention"
+        },
+        "admission": {
+            "suggested_admission_level": "ICU",
+            "note": "Prepare ICU bed"
+        },
+        "resource": {
+            "bed": "ICU-2",
+            "teams": ["Cardiology", "Emergency"],
+            "note": "Teams alerted"
+        },
+        "disclaimer": "For clinical support only"
+    }
+
+
+@router.post("/ambulance/intake")
+async def ambulance_intake(payload: dict):
+    print("🚑 AUTOMATIC AMBULANCE DATA RECEIVED")
+    print(payload)
+
+    ambulance_id = payload.get("ambulance_id", "UNKNOWN")
+    patient = payload.get("patient", {})
+    vitals = payload.get("vitals", {})
+
+    triage = triage_agent(patient, vitals)
+    admission = admission_agent(triage)
+    resource = resource_agent(triage)
+
+    result = {
+        "ambulance_id": ambulance_id,
+        "triage": triage,
+        "admission": admission,
+        "resource": resource
+    }
+
+    if connected_hospitals:
+        for ws in connected_hospitals:
+            await ws.send_text(json.dumps(result))
+            print(f"🏥 Hospital notified for {ambulance_id}")
+    else:
+        print("⚠️ No hospital dashboard connected")
+
+    return {
+        **result,
+        "disclaimer": "AI-assisted workflow support only."
+    }
+
+@router.websocket("/ws/hospital")
+async def hospital_ws(websocket: WebSocket):
+    await websocket.accept()
+    await register_hospital(websocket)
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except:
+        await unregister_hospital(websocket)

@@ -1,5 +1,5 @@
 # backend/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from api.routes import router
 import uvicorn
 
@@ -9,6 +9,7 @@ app = FastAPI(
 )
 
 app.include_router(router, prefix="/api")
+
 
 @app.get("/")
 def read_root():
