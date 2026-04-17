@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+pydantic
+httpx
+streamlit
+python-dotenv
+pandas
+pyarrow
+joblib

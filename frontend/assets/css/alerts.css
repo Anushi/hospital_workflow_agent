@@ -1,0 +1,28 @@
+.blink-red {
+    background-color: red;
+    animation: blink 1s infinite;
+}
+
+.blink-yellow {
+    background-color: yellow;
+    animation: blink 1s infinite;
+}
+
+.blink-green {
+    background-color: green;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+.alert-box {
+    padding: 20px;
+    border-radius: 10px;
+    color: black;
+    font-weight: bold;
+    text-align: center;
+}
