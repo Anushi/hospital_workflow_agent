@@ -1,4 +1,5 @@
 import streamlit as st
+<<<<<<< HEAD
 import pandas as pd
 import os
 import time
@@ -87,3 +88,10 @@ def save_feedback_to_backend(data):
     else:
         existing_df = pd.read_excel(REWARDS_FILE)
         pd.concat([existing_df, df], ignore_index=True).to_excel(REWARDS_FILE, index=False)
+=======
+
+def display_patient_info(patient_data):
+    st.subheader("Patient Information")
+    for k, v in patient_data.items():
+        st.write(f"{k}: {v}")
+>>>>>>> 0ba03eb97bf983192968a5a9d7e2672d39c2ba99
